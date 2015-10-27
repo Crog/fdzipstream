@@ -13,13 +13,6 @@
 
 #if FDZIPSTREAM_AESDEFLATE
 
-/* Deflate implementation adds z_stream */
-typedef struct zipaesdeflateimpl_s
-{
-	ZIPmethod method; //< Base
-	//z_stream zlstream;
-} ZIPaesdeflateimpl;
-
 /* AES-Deflate implementation */
 static ZIPmethodimpl* zs_aesdeflate_init( ZIPstream *zstream, int method );
 static void zs_aesdeflate_free( ZIPmethodimpl* this );
@@ -71,9 +64,9 @@ typedef struct zipdeflateimpl_s
 	size_t aesPartialBlockCacheSize;
 	uint8_t aesPartialBlockCache[AES_BLOCK_SIZE];
 
-} ZIPdeflateimpl;
+} ZIPaesdeflateimpl;
 
-static ZIPdeflateimpl aesdeflateImpl = { { { zs_aesdeflate_init, zs_aesdeflate_free}, zs_aesdeflate_entrybegin, zs_aesdeflate_process, zs_aesdeflate_entryend, zs_aesdeflate_writeExtraData } };
+static ZIPaesdeflateimpl aesdeflateImpl = { { { zs_aesdeflate_init, zs_aesdeflate_free}, zs_aesdeflate_entrybegin, zs_aesdeflate_process, zs_aesdeflate_entryend, zs_aesdeflate_writeExtraData } };
 
 int print_hex(uint8_t *buf, int len)
 {
@@ -99,7 +92,7 @@ static ZIPmethodimpl* zs_aesdeflate_init( ZIPstream *zstream, int method )
 			 method != ZS_AES2_DEFLATE )
 		return NULL;
 
-	ZIPdeflateimpl *this = (ZIPdeflateimpl *) calloc (1, sizeof(aesdeflateImpl));
+	ZIPaesdeflateimpl *this = (ZIPaesdeflateimpl *) calloc (1, sizeof(aesdeflateImpl));
 	memcpy( this, &aesdeflateImpl, sizeof(*this) );
 	this->version = (method == ZS_AES2_DEFLATE) ? 2 : 1;
 	this->aesPartialBlockCacheSize = 0;
@@ -118,7 +111,7 @@ static ZIPmethodimpl* zs_aesdeflate_init( ZIPstream *zstream, int method )
 
 static void zs_aesdeflate_free( ZIPmethodimpl* thisbase )
 {
-	ZIPdeflateimpl* this = (ZIPdeflateimpl*)thisbase;
+	ZIPaesdeflateimpl* this = (ZIPaesdeflateimpl*)thisbase;
     HMAC_CTX_cleanup(&this->hmaxCtx);
 
     zs_freeImpl( this->deflate );
@@ -127,7 +120,7 @@ static void zs_aesdeflate_free( ZIPmethodimpl* thisbase )
 
 static int32_t zs_aesdeflate_entrybegin( ZIPmethodimpl* thisbase, ZIPstream *zstream, ZIPentry *zentry )
 {
-	ZIPdeflateimpl* this = (ZIPdeflateimpl*)thisbase;
+	ZIPaesdeflateimpl* this = (ZIPaesdeflateimpl*)thisbase;
 
 	// Forward to deflate
 	if ( !this->deflate->entrybegin( this->deflate, zstream, zentry ) )
@@ -145,7 +138,7 @@ static int32_t zs_aesdeflate_entrybegin( ZIPmethodimpl* thisbase, ZIPstream *zst
 
 static int32_t zs_aesdeflate_writeExtraData( ZIPmethodimpl* thisbase, ZIPstream *zstream, ZIPentry *zentry )
 {
-	ZIPdeflateimpl* this = (ZIPdeflateimpl*)thisbase;
+	ZIPaesdeflateimpl* this = (ZIPaesdeflateimpl*)thisbase;
 
 	// Forward to deflate
 	if ( this->deflate->writeExtraData != NULL
@@ -180,7 +173,7 @@ static int32_t zs_aesdeflate_writeExtraData( ZIPmethodimpl* thisbase, ZIPstream 
  */
 static int32_t zs_aesdeflate_process( struct zipmethodimpl_s* thisbase, uint8_t *entry, int64_t entrySize, uint8_t* writeBuffer, int64_t writeBufferSize, int32_t final )
 {
-	ZIPdeflateimpl* this = (ZIPdeflateimpl*)thisbase;
+	ZIPaesdeflateimpl* this = (ZIPaesdeflateimpl*)thisbase;
 
 	// Forward to deflate
 	// NOTE:If we had a partial block data we will append to it
@@ -252,7 +245,7 @@ static int32_t zs_aesdeflate_process( struct zipmethodimpl_s* thisbase, uint8_t 
 
 static int32_t zs_aesdeflate_entryend( ZIPmethodimpl* thisbase, ZIPstream *zstream, ZIPentry *zentry )
 {
-	ZIPdeflateimpl* this = (ZIPdeflateimpl*)thisbase;
+	ZIPaesdeflateimpl* this = (ZIPaesdeflateimpl*)thisbase;
 
 	// Forward to deflate
 	if ( !this->deflate->entryend( this->deflate, zstream, zentry ) )
@@ -283,7 +276,7 @@ static int32_t zs_aesdeflate_entryend( ZIPmethodimpl* thisbase, ZIPstream *zstre
 	return 1;
 }
 
-static int32_t generateNewKey( ZIPdeflateimpl* this, const char* password )
+static int32_t generateNewKey( ZIPaesdeflateimpl* this, const char* password )
 {
 	//Generate our new files 'salt' key
 	RAND_bytes( this->salt, sizeof(this->salt) );
@@ -319,7 +312,7 @@ int32_t zs_aesdeflate_setpassword( ZIPstream *zstream, ZIPentry *zentry, const c
 		return 0; ///< fail!
 	}
 
-	ZIPdeflateimpl* this = (ZIPdeflateimpl*)zentry->impl;
+	ZIPaesdeflateimpl* this = (ZIPaesdeflateimpl*)zentry->impl;
 
 	if ( !generateNewKey( this, password ) )
 	{
