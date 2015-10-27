@@ -231,7 +231,7 @@ static int32_t zs_deflate_process( ZIPmethodimpl* thisbase, uint8_t *entry, int6
 	zlstream->next_out = writeBuffer;
 	zlstream->avail_out = writeBufferSize;
 
-	int rv = deflate( zlstream, (final ? Z_FINISH : Z_NO_FLUSH) );
+	int rv = deflate( zlstream, (final ? Z_FINISH : Z_SYNC_FLUSH) );
 	if ( rv != Z_OK
 			&& rv != Z_STREAM_END )
 	{
@@ -949,6 +949,7 @@ zs_writedata ( ZIPstream *zstream, uint8_t *writeBuffer, int64_t writeBufferSize
 
 	/* Write blocks of ZS_WRITE_SIZE until done */
 	int64_t written = 0;
+	/*size_t retries = 50;*/ //< TODO: timeout?
 	while ( written < writeBufferSize )
 	{
 		size_t writeLength = ( (writeBufferSize - written) > ZS_WRITE_SIZE ) ?
@@ -957,6 +958,10 @@ zs_writedata ( ZIPstream *zstream, uint8_t *writeBuffer, int64_t writeBufferSize
 		ssize_t lwritestatus = write (zstream->fd, writeBuffer+written, writeLength);
 		if ( lwritestatus <= 0 )
 		{
+			//If writign to a pipe the receiver end buffer may be full so we need to retry
+			if ( /*retries-- &&*/ (errno == EAGAIN || errno == EINTR) )
+				continue;
+
 			return lwritestatus;
 		}
 
